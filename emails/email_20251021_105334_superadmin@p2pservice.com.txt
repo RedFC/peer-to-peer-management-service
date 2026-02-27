@@ -1,0 +1,20 @@
+To: superadmin@p2pservice.com
+Subject: Welcome to Peer-Peer Communication Platform
+
+
+		Hi Super Admin,
+
+		Welcome to Peer-Peer Communication platform!
+
+		Download the App:
+		Use the links below to install the Peer-Peer Communication app on your device:
+		iOS: https://apps.apple.com/us/app-peer-peer-communication/id6441234567
+		Android: https://play.google.com/store/apps/details?id=com.p2pcommunication
+
+		Activate Your Access:
+		After installation, open the app and scan the below QR code to complete your onboarding and activation.
+		
+		<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAACRklEQVR42uyZy20zMQyER9BBR5WgUtSYsQ+kMZWiEnTUQfD8ILWxN04BXv4xT8biu0zEx5DBJz7xJ8OR5B2ZbQn0ZMuAa1m+FkNAB7AAA6v8cg093ZEBRFNAEoXFcxdgZVEgcFwQGHETKQsQ5EGMAp53AIktd8koc4BklEhzHazueKzXlHszoMUrb7H37OsSS0/77+q+ODAjFN8AeO6kyPwVFwckoySZhr6YyAxUmeNKAGcy+bayIG3IXZMpbZYABCLKHz/eRebKEuoSKeKLHcCxPkq8SAuSmdCyfIUhoKcRycLmWAYQp51AOnXatwOQvr53kJsWb8tIe0M/FbYF4Chs3xC+O+cCdHESloCEuAV9oumCkLbIUJ8q3w841hG1kQJQinVtOdTbY/JaALrIBOQt6LlF9od1sASAGk370NoOmWer9nbgmVF7P+pWm2X6ajAEBA6phgHXszTSIiWRgRsMAY5E3L/bTdophS2uc7sSIEaApHYfHafT2z/tgQUAoXpuQYCuMwuHv/GPjLIATJdWxERwYJmTQGzzqQ+9G3DTc2XqYJUNqqctnlTYAPq8GahMdcXSSKG/LAFJM0p3WC+fu/A/zk0mAJKyZy1q1aLIFHpcCHjs3eKKKa44ULKr3l4X8ysDx5VVDwdl3if13PTMKBPAsQeOuJM61NQ/nGzzJYB52TvSXv2ClvHt5fRnAeAp5jj4oklADH5dZENZYpEpfCVgrqiIelt1x39AjsFlBjhdWSfK+mPvNgF84hP/WfwLAAD//zynqrpl019qAAAAAElFTkSuQmCC" />
+
+		Thanks,
+		Team

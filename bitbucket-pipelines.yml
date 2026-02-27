@@ -1,0 +1,81 @@
+definitions:
+  steps:
+    - step: &build
+        name: Build (Go, no Docker)
+        runs-on:
+          - eng
+          - self.hosted
+          - linux.shell
+        script:
+          - echo "Building ${BITBUCKET_REPO_SLUG}"
+          - if ! command -v go >/dev/null 2>&1; then GO_VER=1.22.5; echo "Installing Go ${GO_VER}"; curl -sSL https://go.dev/dl/go${GO_VER}.linux-amd64.tar.gz -o /tmp/go.tgz; sudo rm -rf /usr/local/go; sudo tar -C /usr/local -xzf /tmp/go.tgz; fi
+          - if ! command -v jq >/dev/null 2>&1; then (sudo apt-get install -y jq) || (sudo yum install -y jq) || (sudo dnf install -y jq); fi
+          - export PATH=/usr/local/go/bin:$PATH
+          - mkdir -p ./artifacts
+          - go version
+          - go mod download
+          - go build -o ./artifacts/${BITBUCKET_REPO_SLUG}/bin/service main.go
+          - cp -R db ./artifacts/${BITBUCKET_REPO_SLUG}/
+          - cp Makefile cicd-deployment/deployer.sh ./artifacts/${BITBUCKET_REPO_SLUG}/
+          - cd ./artifacts; tar -cvf ${BITBUCKET_REPO_SLUG}.tar ${BITBUCKET_REPO_SLUG}
+          - ls -lah ${BITBUCKET_CLONE_DIR}/artifacts/
+        artifacts:
+          - artifacts/**
+
+    - step: &publish
+        name: Publish to S3
+        runs-on:
+          - eng
+          - self.hosted
+          - linux.shell
+        script:
+          - echo "Publishing service binary to S3"
+          - aws s3 cp ./artifacts/${BITBUCKET_REPO_SLUG}.tar s3://p2p-management-dev-artifacts/${BITBUCKET_REPO_SLUG}/${BITBUCKET_REPO_SLUG}.tar-${BITBUCKET_COMMIT} --region us-east-1
+          - echo "Published ${BITBUCKET_REPO_SLUG}.tar-${BITBUCKET_COMMIT} to S3"
+          - cd ./artifacts; rm ${BITBUCKET_REPO_SLUG}.tar
+
+    - step: &deploy
+        name: Deploy (manual)
+        trigger: manual
+        runs-on:
+          - eng
+          - self.hosted
+          - linux.shell
+        script:
+          - export ENVIRONMENT="${ENVIRONMENT:-$BITBUCKET_DEPLOYMENT_ENVIRONMENT}"
+          - export AWS_SERVICE_REGION="${AWS_SERVICE_REGION:-$AWS_DEFAULT_REGION}"
+          - echo "Fetching JWT keys from AWS Secrets Manager"
+          - mkdir -p ./artifacts/${BITBUCKET_REPO_SLUG}/keys
+          - aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT}/${BITBUCKET_REPO_SLUG}/jwt_private_key --region ${AWS_SERVICE_REGION} --query 'SecretString' --output text > ./artifacts/${BITBUCKET_REPO_SLUG}/keys/jwt_private.pem
+          - aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT}/${BITBUCKET_REPO_SLUG}/jwt_public_key --region ${AWS_SERVICE_REGION} --query 'SecretString' --output text > ./artifacts/${BITBUCKET_REPO_SLUG}/keys/jwt_public.pem
+          - aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT}/${BITBUCKET_REPO_SLUG}/secrets --region ${AWS_SERVICE_REGION} --query 'SecretString' --output text | jq -r 'to_entries[] | "\(.key)=\(.value|tostring|@sh)"' > ./artifacts/${BITBUCKET_REPO_SLUG}/.env
+          - cd ./artifacts; tar -cvf ${BITBUCKET_REPO_SLUG}.tar ${BITBUCKET_REPO_SLUG}; ls
+          - mkdir -p $BITBUCKET_CLONE_DIR/tmp && chmod 700 $BITBUCKET_CLONE_DIR/tmp
+          - jump_key_file=$BITBUCKET_CLONE_DIR/tmp/jump_host_key
+          - remote_host_key_file=$BITBUCKET_CLONE_DIR/tmp/remote_host_key
+          - echo "fetching jumphost and remote host pem keys for $ENVIRONMENT, $BITBUCKET_REPO_SLUG and $AWS_SERVICE_REGION"
+          - aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT}/sm-jump-host-ssh-key --region ${AWS_SERVICE_REGION} --query 'SecretString' --output text  > "$jump_key_file"
+          - aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT}/${BITBUCKET_REPO_SLUG}/sm-remote-host-ssh-key --region ${AWS_SERVICE_REGION} --query 'SecretString' --output text  > "$remote_host_key_file"  
+          - chmod 600 "$jump_key_file" "$remote_host_key_file"
+          - echo "Deploying to ${REMOTE_HOSTS} hosts via $JUMPHOST"
+          - IFS=',' read -ra HOSTS <<< "$REMOTE_HOSTS"
+          - |
+            for host in "${HOSTS[@]}"; do
+              echo "Deploying to host: $host"
+              scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ProxyCommand="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${jump_key_file} -W %h:%p ${JUMPHOST_USER}@${JUMPHOST}" -i ${remote_host_key_file} ${BITBUCKET_CLONE_DIR}/artifacts/${BITBUCKET_REPO_SLUG}.tar ${REMOTE_HOST_USER}@${host}:/tmp/
+              ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ProxyCommand="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${jump_key_file} -W %h:%p ${JUMPHOST_USER}@${JUMPHOST}" -i ${remote_host_key_file} ${REMOTE_HOST_USER}@${host} "sudo cp /tmp/${BITBUCKET_REPO_SLUG}.tar /opt/; cd /opt/; sudo tar -xvf ${BITBUCKET_REPO_SLUG}.tar; sudo chmod -R 755 /opt/${BITBUCKET_REPO_SLUG}; sudo sh /opt/${BITBUCKET_REPO_SLUG}/deployer.sh $ENVIRONMENT $BITBUCKET_REPO_SLUG"
+              echo "Successfully deployed to $host"
+            done
+          - rm -rf "$BITBUCKET_CLONE_DIR/tmp"
+
+pipelines:
+  default:
+    - step: *build
+
+  branches:
+    SIT_deployment:
+      - step: *build
+      - step: *publish
+      - step: 
+          <<: *deploy
+          deployment: SIT

@@ -1,0 +1,12 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "./db/migrations"   # Path to your schema
+    queries: "./db/queries"     # Path to your queries
+    gen:
+      go:
+        out: "./db/generated"   # Output folder for the generated Go code
+        package: "generated"    # Name of the Go package for the generated code
+        overrides:
+          - db_type: "uuid[]"
+            go_type: "github.com/sqlc-dev/pqtype.UUIDArray"
